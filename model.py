@@ -8,7 +8,7 @@ TRAIN_DATA = 'data/train.csv'
 
 def main():
     train_data = pd.read_csv(TRAIN_DATA)
-    train_X = pd.get_dummies(train_data.drop('Survived', axis=1).drop('Name', axis=1))
+    train_X = pd.get_dummies(train_data.drop('Survived', axis=1).drop('Name', axis=1), dummy_na=True)
     print(train_X)
     train_Y = train_data[['Survived']]
 

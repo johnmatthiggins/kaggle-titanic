@@ -3,3 +3,6 @@ data:
 	mkdir data
 	unzip titanic.zip -d data
 
+test:
+	./model.py --test results.csv
+

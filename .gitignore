@@ -2,3 +2,5 @@
 data/
 train_x.csv
 test_x.csv
+submission.csv
+results.csv

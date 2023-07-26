@@ -59,31 +59,47 @@ def grab_non_numeric_blobs(row):
 
 def test_model(model, results_file):
     test_X = clean_data(pd.read_csv(TEST_DATA))
-    print(test_X)
 
     test_X.to_csv('test_x.csv')
 
     pred_Y = model.predict(test_X)
     test_X['Survived'] = pred_Y
-    test_X[['Survived', 'PassengerId']].to_csv(results_file)
+    test_X[['Survived', 'PassengerId']].to_csv(results_file, index=False)
 
 
 def clean_data(X):
+    ticket_columns = set(build_ticket_columns())
+    ticket_values = X[['Ticket']]
+
     train_X = X.drop('Name', axis=1).drop('Ticket', axis=1)
 
     columns = train_X.columns
-    mean_age = train_X['Age'].mean()
-    mean_fare = train_X['Fare'].mean()
+    mean_age = train_X['Age'].median()
+    mean_fare = train_X['Fare'].median()
+
+    ticket_column_values = ticket_values\
+            .apply(lambda r: derive_ticket_columns(r, ticket_columns), axis=1)\
+            .drop('Ticket', axis=1)
 
     train_X = train_X.apply(lambda r: set_age_as_mean(r, mean_age), axis=1)\
                      .apply(lambda r: set_fare_as_mean(r, mean_fare), axis=1)\
-                     .join(create_cabin_columns(X)).drop('Cabin', axis=1)
+                     .join(create_cabin_columns(X)).drop('Cabin', axis=1)\
+                     .join(ticket_column_values)
 
     train_X = pd.get_dummies(train_X)
-
     train_X.to_csv('train_x.csv')
 
     return train_X
+
+
+def derive_ticket_columns(row, column_names):
+    for name in column_names:
+        if name in row['Ticket']:
+            row[str(name)] = 1
+        else:
+            row[str(name)] = 0
+
+    return row
 
 
 # key: 'Cabin'
@@ -101,9 +117,30 @@ def create_cabin_columns(df):
     return pd.DataFrame.from_dict(result_dict)
 
 
+def cabin_number(row):
+    segments = str(row['Cabin']).split(' ')
+    numeric_segments = []
+    
+    for segment in segments:
+        numeric_segment = ''
+        for c in segment:
+            if c.isnumeric():
+                numeric_segment += c
+
+        if len(numeric_segment) != 0:
+            numeric_segments.append(numeric_segment)
+
+    if len(numeric_segments) != 0:
+        return float(numeric_segments[0])
+    else:
+        return -1
+
+
 def create_cabin_column_dict(row):
     letters = a_to_h()
     cabin_column_values = dict()
+    number = cabin_number(row)
+    cabin_column_values['CabinNumber'] = number
 
     for letter in letters:
         if letter in str(row['Cabin']):
@@ -115,13 +152,32 @@ def create_cabin_column_dict(row):
 
 
 def train_model(train_X, train_Y):
-    model = RandomForestClassifier(n_estimators=100)
+    model = RandomForestClassifier(n_estimators=512)
     model.fit(train_X, train_Y)
 
     y_predictions = model.predict(train_X)
     accuracy = sk.metrics.accuracy_score(train_Y, y_predictions)
 
     return (model, accuracy)
+
+
+def build_ticket_columns():
+    test = pd.read_csv(TEST_DATA)[['Ticket']]
+    train = pd.read_csv(TRAIN_DATA)[['Ticket']]
+    data = pd.concat((test, train), axis=1)
+
+    def extract_destinations(row):
+        ticket_text = row['Ticket']
+        if not pd.isna(ticket_text[0]):
+            chunks = str(ticket_text[0]).split(' ')
+        else:
+            chunks = []
+
+        return list(filter(lambda s: not s.isnumeric(), chunks))
+
+    chunk_list = list(data.apply(extract_destinations, axis=1))
+    
+    return np.concatenate(chunk_list)
 
 
 def set_age_as_mean(row, mean):

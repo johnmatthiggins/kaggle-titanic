@@ -16,10 +16,8 @@ def main():
 
 
 def train(train_data):
-    cleaned_data = clean_data(train_data)
-
-    train_X = cleaned_data[0]
-    train_Y = cleaned_data[1]
+    train_X = clean_data(train_data.drop('Survived', axis=1))
+    train_Y = train_data['Survived']
 
     model, accuracy = train_model(train_X, train_Y)
     print(accuracy)
@@ -60,16 +58,8 @@ def grab_non_numeric_blobs(row):
 
 
 def test_model(model, results_file):
-    test_X = pd.read_csv(TEST_DATA).drop('Name', axis=1).drop('Ticket', axis=1)
-
-    columns = test_X.columns
-    mean_age = test_X['Age'].mean()
-
-    test_X = test_X.apply(
-            lambda r: set_age_as_mean(r, mean_age), axis=1).join(
-                    create_cabin_columns(test_X)).drop('Cabin', axis=1)
-    test_X = pd.get_dummies(test_X)
-    test_X.at['', '']
+    test_X = clean_data(pd.read_csv(TEST_DATA))
+    print(test_X)
 
     test_X.to_csv('test_x.csv')
 
@@ -78,21 +68,22 @@ def test_model(model, results_file):
     test_X[['Survived', 'PassengerId']].to_csv(results_file)
 
 
-def clean_data(df):
-    train_X = df.drop('Survived', axis=1).drop('Name', axis=1).drop('Ticket', axis=1)
+def clean_data(X):
+    train_X = X.drop('Name', axis=1).drop('Ticket', axis=1)
 
     columns = train_X.columns
     mean_age = train_X['Age'].mean()
+    mean_fare = train_X['Fare'].mean()
 
-    train_X = train_X.apply(
-            lambda r: set_age_as_mean(r, mean_age), axis=1).join(
-                    create_cabin_columns(df)).drop('Cabin', axis=1)
+    train_X = train_X.apply(lambda r: set_age_as_mean(r, mean_age), axis=1)\
+                     .apply(lambda r: set_fare_as_mean(r, mean_fare), axis=1)\
+                     .join(create_cabin_columns(X)).drop('Cabin', axis=1)
+
     train_X = pd.get_dummies(train_X)
 
     train_X.to_csv('train_x.csv')
-    train_Y = df['Survived']
 
-    return (train_X, train_Y)
+    return train_X
 
 
 # key: 'Cabin'
@@ -136,6 +127,13 @@ def train_model(train_X, train_Y):
 def set_age_as_mean(row, mean):
     if pd.isna(row['Age']):
         row['Age'] = mean
+
+    return row
+
+
+def set_fare_as_mean(row, mean):
+    if pd.isna(row['Fare']):
+        row['Fare'] = mean
 
     return row
 

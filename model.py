@@ -69,7 +69,9 @@ def test_model(model, results_file):
 
 def clean_data(X):
     ticket_columns = set(build_ticket_columns())
+    print(ticket_columns)
     ticket_values = X[['Ticket']]
+    ticket_values['Ticket'].transform(lambda e: e.replace('STON', 'SOTON'))
 
     train_X = X.drop('Name', axis=1).drop('Ticket', axis=1)
 
@@ -93,6 +95,12 @@ def clean_data(X):
 
 
 def derive_ticket_columns(row, column_names):
+    numbers = list(filter(lambda s: s.isnumeric() and len(s) > 3, str(row['Ticket']).split(' ')))
+
+    if len(numbers) == 0:
+        row['TicketNumber'] = -1
+    else:
+        row['TicketNumber'] = float(numbers[0])
     for name in column_names:
         if name in row['Ticket']:
             row[str(name)] = 1

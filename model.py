@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import matplotlib.pyplot as plt
+import missingno as msno
 import sys
 import numpy as np
 import sklearn as sk
@@ -68,6 +70,8 @@ def test_model(model, results_file):
 
 
 def clean_data(X):
+    msno.matrix(X)
+    plt.show()
     ticket_columns = set(build_ticket_columns())
     print(ticket_columns)
     ticket_values = X[['Ticket']]
@@ -176,6 +180,7 @@ def build_ticket_columns():
 
     def extract_destinations(row):
         ticket_text = row['Ticket']
+
         if not pd.isna(ticket_text[0]):
             chunks = str(ticket_text[0]).split(' ')
         else:
